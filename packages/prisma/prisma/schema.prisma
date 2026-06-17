@@ -23,6 +23,7 @@ model User {
 model Conversation {
   id  Int @id @default(autoincrement())
   
+  
 
   project Project?
 }
