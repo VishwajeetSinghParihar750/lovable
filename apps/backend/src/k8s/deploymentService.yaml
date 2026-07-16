@@ -17,11 +17,11 @@ spec:
         app: ${WORKER_NAME}
     spec:
       containers:
-        - name: userApp
+        - name: user-app
           image: ${USER_APP_IMAGE}
           ports:
             - containerPort: ${USER_APP_PORT}
-        - name: aiApp
+        - name: ai-app
           image: ${AI_APP_IMAGE}
           ports:
             - containerPort: ${AI_APP_PORT}

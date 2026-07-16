@@ -15,7 +15,7 @@ const { USER_APP_IMAGE, USER_APP_PORT, AI_APP_IMAGE, AI_APP_PORT } = config;
 const startPod = async () => {
   //
   console.dir(kc.getCurrentCluster(), { depth: null });
-  const workerId = crypto.randomUUID();
+  const workerId = `worker-${crypto.randomUUID()}`;
   let userAppUrl = "";
 
   const deployment = structuredClone(deploymentYaml);
