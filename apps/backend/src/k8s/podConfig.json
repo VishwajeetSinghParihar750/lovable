@@ -1,0 +1,6 @@
+{
+    "USER_APP_IMAGE": "lovableUserApp",
+    "USER_APP_PORT": 3000,
+    "AI_APP_IMAGE": "lovableAiApp",
+    "AI_APP_PORT": 3001
+}

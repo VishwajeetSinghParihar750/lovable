@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ${WORKER_NAME}
+  labels:
+    app: ${WORKER_NAME}
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: ${WORKER_NAME}
+
+  template:
+    metadata:
+      labels:
+        app: ${WORKER_NAME}
+    spec:
+      containers:
+        - name: userApp
+          image: ${USER_APP_IMAGE}
+          ports:
+            - containerPort: ${USER_APP_PORT}
+        - name: aiApp
+          image: ${AI_APP_IMAGE}
+          ports:
+            - containerPort: ${AI_APP_PORT}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ${WORKER_NAME}
+spec:
+  type: ClusterIP
+  selector:
+    app: ${WORKER_NAME}
+  ports:
+    - name: user-app
+      port: 3000
+      targetPort: ${USER_APP_PORT}
+    - name: ai-app
+      port: 80
+      targetPort: ${AI_APP_PORT}
