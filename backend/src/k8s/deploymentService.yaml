@@ -37,7 +37,7 @@ spec:
     app: ${WORKER_NAME}
   ports:
     - name: user-app
-      port: 3000
+      port: 5143
       targetPort: ${USER_APP_PORT}
     - name: ai-app
       port: 80

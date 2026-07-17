@@ -1,0 +1,16 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingres
+metadata:
+  name: lovable-ingres
+spec:
+  ingresClassname: nginx
+
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: backend
+                port: 80

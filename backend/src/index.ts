@@ -59,6 +59,7 @@ app.use(express.json());
 app.post("/initProject", async (req, res) => {
   const { message } = req.body;
   //
+  console.log(message);
 });
 
 app.post("/chat", async (req, res) => {
