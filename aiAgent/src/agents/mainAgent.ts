@@ -59,7 +59,11 @@ Be direct and concise. Focus on building what the user asked for. Do not narrate
 
 const chat: any[] = [];
 
-export async function mainAgent(input: string) {
+export async function mainAgent(
+  input: string,
+  onOutput: (inp: string) => void,
+  onFinish: () => void,
+) {
   chat.push({
     type: "user_input",
     content: [{ type: "text", text: input }],
@@ -70,5 +74,7 @@ export async function mainAgent(input: string) {
     chat,
     tools,
     availableFunctions: availableFunctionsMapping,
+    onOutput,
+    onFinish,
   });
 }

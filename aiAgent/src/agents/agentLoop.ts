@@ -19,6 +19,8 @@ type agentLoopArgs = {
   chat: any[];
   tools: any[];
   availableFunctions: any;
+  onOutput: (output: string) => void;
+  onFinish: () => void;
   outputStructure?: any;
 };
 
@@ -38,27 +40,9 @@ export async function agentLoop(
       store: false,
       tools,
       system_instruction: systemInstruction,
+      stream: true,
       ...(outputStructure != undefined && outputStructure),
     });
-
-    // const tokensUsed = interaction.usage?.total_tokens;
-    // if (tokensUsed != undefined) {
-    //   // maybe summarize / compaction
-    //   if (contextWindowSize! / 2 < tokensUsed) {
-    //     const compactionInteraction = await ai.interactions.create({
-    //       model: geminiModel,
-    //       input: chat,
-    //       store: false,
-    //       system_instruction: SUMMARIZATION_OR_COMPACTION_SYSTEM_INSTRUCTION,
-    //       ...SUMMARIZATION_OR_COMPACTION_OUTPUT_STRUCTURE,
-    //     });
-    //     const parsedResponse = JSON.parse(compactionInteraction.output_text!);
-
-    //     const { type, value } = parsedResponse;
-    //     chat.length = 0;
-    //     chat.push(...value);
-    //   }
-    // }
 
     chat.push(...interaction.steps);
 
