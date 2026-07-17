@@ -3,6 +3,9 @@ import * as k8s from "@kubernetes/client-node";
 import deploymentService from "./k8s/deploymentService.yaml";
 import config from "./k8s/podConfig.json";
 
+import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
+
 // const kc = new k8s.KubeConfig();
 // kc.loadFromDefault();
 // const k8sClient = k8s.KubernetesObjectApi.makeApiClient(kc);
@@ -63,9 +66,29 @@ app.post("/initProject", async (req, res) => {
 });
 
 app.post("/chat", async (req, res) => {
-  //
+  // check if the project exists
+  const { id } = req.query;
+  const url = "";
 
-  const { message } = req.body;
+  // set stream response
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.flushHeaders();
+
+  // send request to aiagent container
+  // const { message } = req.body; // ensure this strictly
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: req.body,
+  });
+
+  // get streamed respons and stream resonse to user
+  await pipeline(Readable.fromWeb(response.body!), res);
 });
 
 app.listen(3000);
