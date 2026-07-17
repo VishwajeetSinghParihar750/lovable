@@ -1,3 +1,7 @@
-FROM bun/oven:1
+FROM oven/bun:1
 WORKDIR /app
-COPY 
+COPY package.json bun.lock ./
+RUN bun install 
+COPY . . 
+EXPOSE 3000
+CMD ["bun", "run", "start"]

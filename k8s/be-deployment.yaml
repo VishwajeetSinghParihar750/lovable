@@ -16,6 +16,7 @@ spec:
     spec:
       containers:
         - name: backend
-          image: backend-docker-image
+          imagePullPolicy: IfNotPresent
+          image: backend-docker-image:latest
           ports:
             - containerPort: 3000

@@ -1,10 +1,9 @@
 apiVersion: networking.k8s.io/v1
-kind: Ingres
+kind: Ingress
 metadata:
-  name: lovable-ingres
+  name: lovable-ingress
 spec:
-  ingresClassname: nginx
-
+  ingressClassName: nginx
   rules:
     - http:
         paths:
@@ -13,4 +12,5 @@ spec:
             backend:
               service:
                 name: backend
-                port: 80
+                port:
+                  number: 80
