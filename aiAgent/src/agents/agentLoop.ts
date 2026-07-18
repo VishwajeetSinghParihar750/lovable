@@ -83,6 +83,13 @@ export async function agentLoop(
     console.log(functionCalls);
     const functionOutputs = [];
     for (const functionCall of functionCalls) {
+      onOutput(
+        "Calling tool " +
+          functionCall.name +
+          " with args : " +
+          functionCall.args,
+      );
+
       const result = await (availableFunctions as any)[functionCall.name](
         JSON.parse(functionCall.args || "{}"),
       );

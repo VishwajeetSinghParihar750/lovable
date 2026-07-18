@@ -1,20 +1,21 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { continueChat, startChat, type ChatMessage } from './api'
+import { PREVIEW_URL, streamChat, type ChatMessage } from './api'
 import './App.css'
 
 export default function App() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [projectId, setProjectId] = useState<string | null>(null)
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [previewKey, setPreviewKey] = useState(0)
   const [loading, setLoading] = useState(false)
+  const [streaming, setStreaming] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const abortRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, loading])
+  }, [messages, loading, streaming])
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -23,30 +24,55 @@ export default function App() {
 
     setInput('')
     setError(null)
-    setMessages((prev) => [...prev, { role: 'user', content: text }])
+
+    const id = projectId ?? crypto.randomUUID()
+    if (!projectId) setProjectId(id)
+
+    setMessages((prev) => [
+      ...prev,
+      { role: 'user', content: text },
+      { role: 'assistant', content: '' },
+    ])
     setLoading(true)
+    setStreaming(true)
+
+    abortRef.current?.abort()
+    const ac = new AbortController()
+    abortRef.current = ac
 
     try {
-      if (!projectId) {
-        const data = await startChat(text)
-        setProjectId(data.id)
-        setPreviewUrl(data.url)
-        setMessages((prev) => [
-          ...prev,
-          { role: 'assistant', content: data.response },
-        ])
-      } else {
-        const data = await continueChat(projectId, text)
-        setMessages((prev) => [
-          ...prev,
-          { role: 'assistant', content: data.response },
-        ])
-        setPreviewKey((k) => k + 1)
-      }
+      await streamChat(
+        id,
+        text,
+        (chunk) => {
+          setMessages((prev) => {
+            const next = [...prev]
+            const last = next[next.length - 1]
+            if (last?.role === 'assistant') {
+              next[next.length - 1] = {
+                ...last,
+                content: last.content + chunk,
+              }
+            }
+            return next
+          })
+        },
+        ac.signal,
+      )
+      setPreviewKey((k) => k + 1)
     } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return
       setError(err instanceof Error ? err.message : 'Something went wrong')
+      setMessages((prev) => {
+        const last = prev[prev.length - 1]
+        if (last?.role === 'assistant' && !last.content) {
+          return prev.slice(0, -1)
+        }
+        return prev
+      })
     } finally {
       setLoading(false)
+      setStreaming(false)
     }
   }
 
@@ -59,8 +85,8 @@ export default function App() {
           <p className="brand">Lovable</p>
           <h1>What do you want to build?</h1>
           <p className="subtitle">
-            Describe your idea. We&apos;ll spin up a project and stream the live
-            site beside your chat.
+            Describe your idea. We&apos;ll stream the agent reply beside a live
+            preview of your app.
           </p>
           <form className="composer" onSubmit={handleSubmit}>
             <textarea
@@ -91,20 +117,22 @@ export default function App() {
             </header>
 
             <div className="messages">
-              {messages.map((msg, i) => (
-                <div key={i} className={`bubble bubble--${msg.role}`}>
-                  <span className="bubble-role">
-                    {msg.role === 'user' ? 'You' : 'AI'}
-                  </span>
-                  <p>{msg.content}</p>
-                </div>
-              ))}
-              {loading && (
-                <div className="bubble bubble--assistant bubble--pending">
-                  <span className="bubble-role">AI</span>
-                  <p>Working on it…</p>
-                </div>
-              )}
+              {messages.map((msg, i) => {
+                const isEmptyAssistant =
+                  msg.role === 'assistant' && !msg.content && streaming
+                return (
+                  <div key={i} className={`bubble bubble--${msg.role}`}>
+                    <span className="bubble-role">
+                      {msg.role === 'user' ? 'You' : 'AI'}
+                    </span>
+                    <p>
+                      {isEmptyAssistant
+                        ? 'Working on it…'
+                        : msg.content || (msg.role === 'assistant' ? '…' : '')}
+                    </p>
+                  </div>
+                )
+              })}
               <div ref={bottomRef} />
             </div>
 
@@ -132,22 +160,24 @@ export default function App() {
           <main className="preview-panel">
             <header className="preview-header">
               <span className="preview-label">Live preview</span>
-              {previewUrl && (
-                <a href={previewUrl} target="_blank" rel="noreferrer">
-                  {previewUrl}
-                </a>
-              )}
+              <a href={PREVIEW_URL} target="_blank" rel="noreferrer">
+                {PREVIEW_URL}
+              </a>
+              <button
+                type="button"
+                className="preview-refresh"
+                onClick={() => setPreviewKey((k) => k + 1)}
+                title="Refresh preview"
+              >
+                Refresh
+              </button>
             </header>
-            {previewUrl ? (
-              <iframe
-                key={`${previewUrl}-${previewKey}`}
-                src={previewUrl}
-                title="Live website preview"
-                className="preview-frame"
-              />
-            ) : (
-              <div className="preview-empty">No preview URL yet</div>
-            )}
+            <iframe
+              key={`${PREVIEW_URL}-${previewKey}`}
+              src={PREVIEW_URL}
+              title="Live website preview"
+              className="preview-frame"
+            />
           </main>
         </div>
       )}
