@@ -21,15 +21,8 @@ type FunctionCall = {
   name: string;
   args: string;
 };
-let previousInteractionId: any = undefined;
-let nextInput: any = undefined;
-let currentFunction: FunctionCall = {
-  id: "",
-  name: "",
-  args: "",
-};
-let functionCalls: FunctionCall[] = [];
 
+let previousInteractionId: any = undefined;
 export async function agentLoop(
   args: agentLoopArgs,
 ): Promise<string | undefined> {
@@ -42,7 +35,7 @@ export async function agentLoop(
     onOutput,
   } = args;
 
-  nextInput = [
+  let nextInput: any = [
     {
       type: "user_input",
       content: [{ type: "text", text: message }],
@@ -50,6 +43,8 @@ export async function agentLoop(
   ];
 
   while (true) {
+    console.log(nextInput);
+
     const stream = await ai.interactions.create({
       model: geminiModel,
       tools,
@@ -59,36 +54,25 @@ export async function agentLoop(
       previous_interaction_id: previousInteractionId,
     });
 
+    const functionCalls: FunctionCall[] = [];
+    let currentFunction: FunctionCall | null = null;
+
     for await (const event of stream) {
       if (event.event_type === "interaction.created") {
         previousInteractionId = event.interaction.id;
       } else if (event.event_type === "step.start") {
         const step = event.step;
         if (step.type === "function_call") {
-          if (currentFunction.id != "") {
-            functionCalls.push(currentFunction);
-            currentFunction.args = "";
-            currentFunction.id = "";
-            currentFunction.name = "";
-          }
-
-          currentFunction.id = step.id;
-          currentFunction.name = step.name;
+          currentFunction = { id: step.id, name: step.name, args: "" };
+          functionCalls.push(currentFunction);
         }
       } else if (event.event_type === "step.delta") {
         if (event.delta.type === "arguments_delta") {
-          currentFunction.args += event.delta.arguments;
+          if (currentFunction) currentFunction.args += event.delta.arguments;
         } else if (event.delta.type === "text") {
           onOutput(event.delta.text);
         }
       }
-    }
-
-    if (currentFunction.id != "") {
-      functionCalls.push(currentFunction);
-      currentFunction.args = "";
-      currentFunction.id = "";
-      currentFunction.name = "";
     }
 
     if (functionCalls.length == 0) {
@@ -100,7 +84,7 @@ export async function agentLoop(
     const functionOutputs = [];
     for (const functionCall of functionCalls) {
       const result = await (availableFunctions as any)[functionCall.name](
-        JSON.parse(functionCall.args),
+        JSON.parse(functionCall.args || "{}"),
       );
 
       functionOutputs.push({
@@ -110,7 +94,6 @@ export async function agentLoop(
         result,
       });
     }
-    functionCalls.length = 0;
     nextInput = functionOutputs;
   }
 }
