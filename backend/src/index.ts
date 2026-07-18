@@ -66,9 +66,11 @@ app.post("/initProject", async (req, res) => {
 });
 
 app.post("/chat", async (req, res) => {
+  console.log("/chat in backend");
+
   // check if the project exists
   const { id } = req.query;
-  const url = "";
+  const url = "http://localhost:3001/prompt";
 
   // set stream response
   res.setHeader("Content-Type", "text/event-stream");
@@ -79,12 +81,14 @@ app.post("/chat", async (req, res) => {
   // send request to aiagent container
   // const { message } = req.body; // ensure this strictly
 
+  console.log(req.body);
+
   const response = await fetch(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: req.body,
+    body: JSON.stringify(req.body),
   });
 
   // get streamed respons and stream resonse to user

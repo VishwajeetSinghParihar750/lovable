@@ -1,22 +1,14 @@
 import "dotenv/config";
 import { GoogleGenAI } from "@google/genai";
-import { assert } from "console";
-// import {
-//   SUMMARIZATION_OR_COMPACTION_OUTPUT_STRUCTURE,
-//   SUMMARIZATION_OR_COMPACTION_SYSTEM_INSTRUCTION,
-// } from "../utils/compactionSummarization";
 
 const geminiModel = "gemini-3.5-flash";
 const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_KEY!,
 });
-const model = await ai.models.get({
-  model: geminiModel,
-});
 
 type agentLoopArgs = {
   systemInstruction: string;
-  chat: any[];
+  message: string;
   tools: any[];
   availableFunctions: any;
   onOutput: (output: string) => void;
@@ -24,52 +16,101 @@ type agentLoopArgs = {
   outputStructure?: any;
 };
 
+type FunctionCall = {
+  id: string;
+  name: string;
+  args: string;
+};
+let previousInteractionId: any = undefined;
+let nextInput: any = undefined;
+let currentFunction: FunctionCall = {
+  id: "",
+  name: "",
+  args: "",
+};
+let functionCalls: FunctionCall[] = [];
+
 export async function agentLoop(
   args: agentLoopArgs,
 ): Promise<string | undefined> {
-  const contextWindowSize = model.inputTokenLimit;
-  assert(contextWindowSize, "context window size could not be found ");
+  let {
+    systemInstruction,
+    message,
+    tools,
+    availableFunctions,
+    onFinish,
+    onOutput,
+  } = args;
 
-  let { systemInstruction, chat, tools, availableFunctions, outputStructure } =
-    args;
+  nextInput = [
+    {
+      type: "user_input",
+      content: [{ type: "text", text: message }],
+    },
+  ];
 
   while (true) {
-    const interaction = await ai.interactions.create({
+    const stream = await ai.interactions.create({
       model: geminiModel,
-      input: chat,
-      store: false,
       tools,
       system_instruction: systemInstruction,
       stream: true,
-      ...(outputStructure != undefined && outputStructure),
+      input: nextInput,
+      previous_interaction_id: previousInteractionId,
     });
 
-    chat.push(...interaction.steps);
+    for await (const event of stream) {
+      if (event.event_type === "interaction.created") {
+        previousInteractionId = event.interaction.id;
+      } else if (event.event_type === "step.start") {
+        const step = event.step;
+        if (step.type === "function_call") {
+          if (currentFunction.id != "") {
+            functionCalls.push(currentFunction);
+            currentFunction.args = "";
+            currentFunction.id = "";
+            currentFunction.name = "";
+          }
 
-    let hadFunctionCalls = false;
-    const toolOutputs = [];
+          currentFunction.id = step.id;
+          currentFunction.name = step.name;
+        }
+      } else if (event.event_type === "step.delta") {
+        if (event.delta.type === "arguments_delta") {
+          currentFunction.args += event.delta.arguments;
+        } else if (event.delta.type === "text") {
+          onOutput(event.delta.text);
+        }
+      }
+    }
 
-    for (const item of interaction.steps) {
-      if (item.type !== "function_call") continue;
+    if (currentFunction.id != "") {
+      functionCalls.push(currentFunction);
+      currentFunction.args = "";
+      currentFunction.id = "";
+      currentFunction.name = "";
+    }
 
-      hadFunctionCalls = true;
+    if (functionCalls.length == 0) {
+      onFinish();
+      return;
+    }
 
-      const result = await (availableFunctions as any)[item.name](
-        item.arguments,
+    console.log(functionCalls);
+    const functionOutputs = [];
+    for (const functionCall of functionCalls) {
+      const result = await (availableFunctions as any)[functionCall.name](
+        JSON.parse(functionCall.args),
       );
 
-      toolOutputs.push({
+      functionOutputs.push({
         type: "function_result",
-        name: item.name,
-        call_id: item.id,
+        name: functionCall.name,
+        call_id: functionCall.id,
         result,
       });
     }
-
-    if (!hadFunctionCalls) {
-      return interaction.output_text;
-    }
-
-    chat.push(...toolOutputs);
+    functionCalls.length = 0;
+    nextInput = functionOutputs;
   }
 }

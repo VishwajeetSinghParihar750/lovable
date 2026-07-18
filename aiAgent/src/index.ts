@@ -2,6 +2,7 @@ import { mainAgent } from "./agents/mainAgent";
 import express from "express";
 
 const app = express();
+app.use(express.json());
 
 process.on("uncaughtException", (e) => {
   console.error("uncaughtException ", e);
@@ -17,17 +18,18 @@ app.get("/stop", async (req, res) => {});
 
 // todo: dont take the next request until current in done
 app.post("/prompt", async (req, res) => {
+  console.log("/prompt in ai agent", req.body);
+
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");
   res.flushHeaders();
 
-  const { query } = req.body;
-
+  const { message } = req.body;
   await mainAgent(
-    query,
+    message,
     (output: string) => res.write(output + "\n\n"),
-    res.end,
+    () => res.end(),
   );
 
   req.on("close", () => {
@@ -38,4 +40,4 @@ app.post("/prompt", async (req, res) => {
   });
 });
 
-app.listen(3000);
+app.listen(3001);

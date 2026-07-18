@@ -57,21 +57,14 @@ You are Lovable's coding agent. You build and edit React apps for the user.
 Be direct and concise. Focus on building what the user asked for. Do not narrate every tool call — summarize outcomes.
 `;
 
-const chat: any[] = [];
-
 export async function mainAgent(
-  input: string,
+  message: string,
   onOutput: (inp: string) => void,
   onFinish: () => void,
 ) {
-  chat.push({
-    type: "user_input",
-    content: [{ type: "text", text: input }],
-  });
-
   return await agentLoop({
     systemInstruction,
-    chat,
+    message,
     tools,
     availableFunctions: availableFunctionsMapping,
     onOutput,
