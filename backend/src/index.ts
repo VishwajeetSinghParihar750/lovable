@@ -3,9 +3,13 @@ import * as k8s from "@kubernetes/client-node";
 import deploymentService from "./k8s/deploymentService.yaml";
 import config from "./k8s/podConfig.json";
 
+import { createServer } from "node:http";
+import httpProxy from "http-proxy";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 
+import apiRouter from "../routers/api";
+import chatRouter from "../routers/chat";
 // const kc = new k8s.KubeConfig();
 // kc.loadFromDefault();
 // const k8sClient = k8s.KubernetesObjectApi.makeApiClient(kc);
@@ -57,42 +61,28 @@ import { pipeline } from "node:stream/promises";
 // startPod();
 
 const app = express();
-app.use(express.json());
+const proxy = httpProxy.createProxyServer({ ws: true });
+const server = createServer(app);
 
-app.post("/initProject", async (req, res) => {
-  const { message } = req.body;
+app.use("/api", apiRouter);
+app.use("/chat", chatRouter);
+
+const getTargetFromRequest = (req: any): string => {
+  return "";
+};
+
+// vite proxy
+app.use((req, res) => {
   //
-  console.log(message);
+  const target = getTargetFromRequest(req);
+  proxy.web(req, res, { target });
 });
 
-app.post("/chat", async (req, res) => {
-  console.log("/chat in backend");
-
-  // check if the project exists
-  const { id } = req.query;
-  const url = "http://localhost:3001/prompt";
-
-  // set stream response
-  res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache");
-  res.setHeader("Connection", "keep-alive");
-  res.flushHeaders();
-
-  // send request to aiagent container
-  // const { message } = req.body; // ensure this strictly
-
-  console.log(req.body);
-
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(req.body),
-  });
-
-  // get streamed respons and stream resonse to user
-  await pipeline(Readable.fromWeb(response.body!), res);
+// ws connection to vite
+server.on("upgrade", (req, socket, head) => {
+  //
+  const target = getTargetFromRequest(req);
+  proxy.ws(req, socket, head, { target });
 });
 
-app.listen(3000);
+server.listen(3000);
