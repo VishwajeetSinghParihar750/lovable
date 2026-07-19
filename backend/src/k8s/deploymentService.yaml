@@ -16,15 +16,24 @@ spec:
       labels:
         app: ${WORKER_NAME}
     spec:
+      volumes:
+        - name: userApp
+          emptyDir: {}
       containers:
         - name: user-app
           image: ${USER_APP_IMAGE}
           ports:
             - containerPort: ${USER_APP_PORT}
+          volumeMounts:
+            - name: userApp
+              mountPath: /app
         - name: ai-app
           image: ${AI_APP_IMAGE}
           ports:
             - containerPort: ${AI_APP_PORT}
+          volumeMounts:
+            - name: userApp
+              mountPath: /app
 
 ---
 apiVersion: v1
